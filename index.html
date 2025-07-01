@@ -2,56 +2,89 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8">
-  <title>Data Sensor dari ThingSpeak</title>
+  <title>Grafik Suhu dari ThingSpeak</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
+      background: #f9f9f9;
       padding: 20px;
-      background: #f0f0f0;
     }
     h1 {
+      text-align: center;
       color: #333;
     }
-    #data-list {
+    #chart-container {
+      width: 80%;
+      max-width: 800px;
+      margin: auto;
       background: #fff;
-      padding: 15px;
-      border-radius: 5px;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-    }
-    .data-item {
-      margin: 5px 0;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
     }
   </style>
 </head>
 <body>
-  <h1>Data Sensor Temperatur dari ThingSpeak</h1>
-  <div id="data-list">Mengambil data...</div>
 
-  <script>
-    // Ganti dengan Channel ID dan Field yang sesuai
-    const apiUrl = "https://api.thingspeak.com/update?api_key=0CD1AA1YQZR9YEB6&field1=0";
+<h1>Grafik Suhu dari ThingSpeak</h1>
+<div id="chart-container">
+  <canvas id="temperatureChart"></canvas>
+</div>
 
-    fetch(apiUrl)
-      .then(response => response.json())
-      .then(data => {
-        const feeds = data.feeds;
-        const dataList = document.getElementById("data-list");
-        dataList.innerHTML = ""; // Kosongkan loading text
+<script>
+  const apiUrl = "https://api.thingspeak.com/channels/1035657/fields/1.json?results=20"; // Ganti dengan Channel ID
 
-        feeds.forEach(feed => {
-          const date = new Date(feed.created_at);
-          const value = feed.field1;
+  fetch(apiUrl)
+    .then(response => response.json())
+    .then(data => {
+      const labels = [];
+      const values = [];
 
-          const item = document.createElement("div");
-          item.className = "data-item";
-          item.textContent = `${date.toLocaleString()} - Nilai: ${value}`;
-          dataList.appendChild(item);
-        });
-      })
-      .catch(error => {
-        document.getElementById("data-list").textContent = "Gagal mengambil data.";
-        console.error("Error fetching data:", error);
+      data.feeds.forEach(feed => {
+        const waktu = new Date(feed.created_at);
+        labels.push(waktu.toLocaleString());
+        values.push(parseFloat(feed.field1));
       });
-  </script>
+
+      const ctx = document.getElementById("temperatureChart").getContext("2d");
+      const temperatureChart = new Chart(ctx, {
+        type: "line",
+        data: {
+          labels: labels,
+          datasets: [{
+            label: "Suhu (°C)",
+            data: values,
+            fill: false,
+            borderColor: "rgba(75, 192, 192, 1)",
+            backgroundColor: "rgba(75, 192, 192, 0.2)",
+            tension: 0.2
+          }]
+        },
+        options: {
+          responsive: true,
+          scales: {
+            x: {
+              ticks: {
+                maxRotation: 90,
+                minRotation: 45
+              }
+            },
+            y: {
+              title: {
+                display: true,
+                text: 'Suhu (°C)'
+              }
+            }
+          }
+        }
+      });
+    })
+    .catch(error => {
+      console.error("Gagal mengambil data:", error);
+      alert("Tidak dapat memuat data dari ThingSpeak.");
+    });
+</script>
+
 </body>
 </html>
