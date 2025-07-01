@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <title>Data Sensor dari ThingSpeak</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      background: #f0f0f0;
+    }
+    h1 {
+      color: #333;
+    }
+    #data-list {
+      background: #fff;
+      padding: 15px;
+      border-radius: 5px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    .data-item {
+      margin: 5px 0;
+    }
+  </style>
+</head>
+<body>
+  <h1>Data Sensor Temperatur dari ThingSpeak</h1>
+  <div id="data-list">Mengambil data...</div>
+
+  <script>
+    // Ganti dengan Channel ID dan Field yang sesuai
+    const apiUrl = "https://api.thingspeak.com/channels/123456/fields/1.json?results=10";
+
+    fetch(apiUrl)
+      .then(response => response.json())
+      .then(data => {
+        const feeds = data.feeds;
+        const dataList = document.getElementById("data-list");
+        dataList.innerHTML = ""; // Kosongkan loading text
+
+        feeds.forEach(feed => {
+          const date = new Date(feed.created_at);
+          const value = feed.field1;
+
+          const item = document.createElement("div");
+          item.className = "data-item";
+          item.textContent = `${date.toLocaleString()} - Nilai: ${value}`;
+          dataList.appendChild(item);
+        });
+      })
+      .catch(error => {
+        document.getElementById("data-list").textContent = "Gagal mengambil data.";
+        console.error("Error fetching data:", error);
+      });
+  </script>
+</body>
+</html>
