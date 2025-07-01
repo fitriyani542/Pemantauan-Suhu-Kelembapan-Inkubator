@@ -2,88 +2,108 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8">
-  <title>Grafik Suhu dari ThingSpeak</title>
+  <title>Grafik Suhu & Kelembaban dari ThingSpeak</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
-      background: #f9f9f9;
       padding: 20px;
+      background: #f2f2f2;
     }
     h1 {
       text-align: center;
-      color: #333;
     }
-    #chart-container {
-      width: 80%;
+    .chart-container {
+      width: 90%;
       max-width: 800px;
-      margin: auto;
+      margin: 30px auto;
       background: #fff;
       padding: 20px;
-      border-radius: 8px;
-      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      border-radius: 10px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
     }
   </style>
 </head>
 <body>
 
-<h1>Grafik Suhu dari ThingSpeak</h1>
-<div id="chart-container">
-  <canvas id="temperatureChart"></canvas>
+<h1>Monitoring Suhu & Kelembaban</h1>
+
+<div class="chart-container">
+  <h3>Grafik Suhu (°C)</h3>
+  <canvas id="suhuChart"></canvas>
+</div>
+
+<div class="chart-container">
+  <h3>Grafik Kelembaban (%)</h3>
+  <canvas id="kelembabanChart"></canvas>
 </div>
 
 <script>
-  const apiUrl = "https://api.thingspeak.com/channels/1035657/fields/1.json?results=20"; // Ganti dengan Channel ID
+  const channelId = "1035657"; // Ganti dengan Channel ID kamu
+  const updateInterval = 30000; // 30 detik (30.000 ms)
 
-  fetch(apiUrl)
-    .then(response => response.json())
-    .then(data => {
-      const labels = [];
-      const values = [];
+  let suhuChart, kelembabanChart;
 
-      data.feeds.forEach(feed => {
-        const waktu = new Date(feed.created_at);
-        labels.push(waktu.toLocaleString());
-        values.push(parseFloat(feed.field1));
+  function fetchAndUpdate() {
+    const url = `https://api.thingspeak.com/channels/${channelId}/feeds.json?results=20`;
+
+    fetch(url)
+      .then(res => res.json())
+      .then(data => {
+        const feeds = data.feeds;
+
+        const labels = feeds.map(f => new Date(f.created_at).toLocaleTimeString());
+        const suhuData = feeds.map(f => parseFloat(f.field1));
+        const kelembabanData = feeds.map(f => parseFloat(f.field2));
+
+        updateChart(suhuChart, labels, suhuData);
+        updateChart(kelembabanChart, labels, kelembabanData);
+      })
+      .catch(err => {
+        console.error("Gagal mengambil data:", err);
       });
+  }
 
-      const ctx = document.getElementById("temperatureChart").getContext("2d");
-      const temperatureChart = new Chart(ctx, {
-        type: "line",
-        data: {
-          labels: labels,
-          datasets: [{
-            label: "Suhu (°C)",
-            data: values,
-            fill: false,
-            borderColor: "rgba(75, 192, 192, 1)",
-            backgroundColor: "rgba(75, 192, 192, 0.2)",
-            tension: 0.2
-          }]
-        },
-        options: {
-          responsive: true,
-          scales: {
-            x: {
-              ticks: {
-                maxRotation: 90,
-                minRotation: 45
-              }
-            },
-            y: {
-              title: {
-                display: true,
-                text: 'Suhu (°C)'
-              }
-            }
-          }
+  function createChart(canvasId, label, color) {
+    const ctx = document.getElementById(canvasId).getContext("2d");
+    return new Chart(ctx, {
+      type: "line",
+      data: {
+        labels: [],
+        datasets: [{
+          label: label,
+          data: [],
+          borderColor: color,
+          backgroundColor: color + "33", // transparan
+          fill: true,
+          tension: 0.3
+        }]
+      },
+      options: {
+        responsive: true,
+        scales: {
+          x: { title: { display: true, text: "Waktu" } },
+          y: { title: { display: true, text: label } }
         }
-      });
-    })
-    .catch(error => {
-      console.error("Gagal mengambil data:", error);
-      alert("Tidak dapat memuat data dari ThingSpeak.");
+      }
     });
+  }
+
+  function updateChart(chart, labels, data) {
+    chart.data.labels = labels;
+    chart.data.datasets[0].data = data;
+    chart.update();
+  }
+
+  // Inisialisasi grafik
+  suhuChart = createChart("suhuChart", "Suhu (°C)", "rgba(255,99,132,1)");
+  kelembabanChart = createChart("kelembabanChart", "Kelembaban (%)", "rgba(54,162,235,1)");
+
+  // Ambil data pertama kali
+  fetchAndUpdate();
+
+  // Setiap 30 detik, perbarui grafik
+  setInterval(fetchAndUpdate, updateInterval);
 </script>
 
 </body>
