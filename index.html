@@ -2,67 +2,84 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8">
-  <title>Grafik Suhu & Kelembaban dari ThingSpeak</title>
+  <title>Monitoring Sensor ThingSpeak</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
+      background: #f7f7f7;
+      margin: 0;
       padding: 20px;
-      background: #f2f2f2;
     }
     h1 {
       text-align: center;
+      margin-bottom: 30px;
     }
-    .chart-container {
-      width: 90%;
-      max-width: 800px;
-      margin: 30px auto;
+    .grid-container {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 20px;
+      max-width: 1200px;
+      margin: auto;
+    }
+    .chart-box {
       background: #fff;
-      padding: 20px;
       border-radius: 10px;
+      padding: 15px;
       box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    .chart-box h3 {
+      margin-top: 0;
+      text-align: center;
+      font-size: 16px;
+    }
+    canvas {
+      width: 100% !important;
+      height: 300px !important;
+    }
+    @media (max-width: 768px) {
+      .grid-container {
+        grid-template-columns: 1fr;
+      }
     }
   </style>
 </head>
 <body>
 
-<h1>Monitoring Suhu & Kelembaban</h1>
+<h1>Monitoring Sensor Realtime</h1>
 
-<div class="chart-container">
-  <h3>Grafik Suhu (°C)</h3>
-  <canvas id="suhuChart"></canvas>
-</div>
-
-<div class="chart-container">
-  <h3>Grafik Kelembaban (%)</h3>
-  <canvas id="kelembabanChart"></canvas>
+<div class="grid-container">
+  <div class="chart-box">
+    <h3>Suhu (DHT11)</h3>
+    <canvas id="chart1"></canvas>
+  </div>
+  <div class="chart-box">
+    <h3>Kelembapan (DHT11)</h3>
+    <canvas id="chart2"></canvas>
+  </div>
+  <div class="chart-box">
+    <h3>Suhu (DS18B20)</h3>
+    <canvas id="chart3"></canvas>
+  </div>
+  <div class="chart-box">
+    <h3>Intensitas Cahaya (LDR)</h3>
+    <canvas id="chart4"></canvas>
+  </div>
 </div>
 
 <script>
-  const channelId = "1035657"; // Ganti dengan Channel ID kamu
-  const updateInterval = 30000; // 30 detik (30.000 ms)
+  const channelId = "3000779"; // Ganti dengan Channel ID kamu
+  const updateInterval = 30000; // 30 detik
+  const results = 20;
 
-  let suhuChart, kelembabanChart;
+  const fieldMapping = [
+    { field: "field1", label: "Suhu (DHT11)", color: "rgba(255, 99, 132, 1)", canvasId: "chart1" },
+    { field: "field2", label: "Kelembapan (DHT11)", color: "rgba(54, 162, 235, 1)", canvasId: "chart2" },
+    { field: "field3", label: "Suhu (DS18B20)", color: "rgba(255, 206, 86, 1)", canvasId: "chart3" },
+    { field: "field4", label: "Intensitas Cahaya (LDR)", color: "rgba(75, 192, 192, 1)", canvasId: "chart4" }
+  ];
 
-  function fetchAndUpdate() {
-    const url = `https://api.thingspeak.com/channels/${channelId}/feeds.json?results=20`;
-
-    fetch(url)
-      .then(res => res.json())
-      .then(data => {
-        const feeds = data.feeds;
-
-        const labels = feeds.map(f => new Date(f.created_at).toLocaleTimeString());
-        const suhuData = feeds.map(f => parseFloat(f.field1));
-        const kelembabanData = feeds.map(f => parseFloat(f.field2));
-
-        updateChart(suhuChart, labels, suhuData);
-        updateChart(kelembabanChart, labels, kelembabanData);
-      })
-      .catch(err => {
-        console.error("Gagal mengambil data:", err);
-      });
-  }
+  let charts = {};
 
   function createChart(canvasId, label, color) {
     const ctx = document.getElementById(canvasId).getContext("2d");
@@ -74,8 +91,8 @@
           label: label,
           data: [],
           borderColor: color,
-          backgroundColor: color + "33", // transparan
-          fill: false,
+          backgroundColor: color + "33",
+          fill: true,
           tension: 0.3
         }]
       },
@@ -95,14 +112,34 @@
     chart.update();
   }
 
-  // Inisialisasi grafik
-  suhuChart = createChart("suhuChart", "Suhu (°C)", "rgba(255,99,132,1)");
-  kelembabanChart = createChart("kelembabanChart", "Kelembaban (%)", "rgba(54,162,235,1)");
+  function fetchAndUpdate() {
+    const url = `https://api.thingspeak.com/channels/${channelId}/feeds.json?results=${results}`;
+
+    fetch(url)
+      .then(response => response.json())
+      .then(data => {
+        const feeds = data.feeds;
+        const labels = feeds.map(f => new Date(f.created_at).toLocaleTimeString());
+
+        fieldMapping.forEach(item => {
+          const values = feeds.map(f => parseFloat(f[item.field]));
+          updateChart(charts[item.canvasId], labels, values);
+        });
+      })
+      .catch(err => {
+        console.error("Gagal mengambil data:", err);
+      });
+  }
+
+  // Inisialisasi semua grafik
+  fieldMapping.forEach(item => {
+    charts[item.canvasId] = createChart(item.canvasId, item.label, item.color);
+  });
 
   // Ambil data pertama kali
   fetchAndUpdate();
 
-  // Setiap 30 detik, perbarui grafik
+  // Update otomatis tiap 30 detik
   setInterval(fetchAndUpdate, updateInterval);
 </script>
 
